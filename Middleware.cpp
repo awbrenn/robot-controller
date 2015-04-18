@@ -54,6 +54,8 @@ int main (int argc, char *argv[]) {
 
     /*set up a TCP connection to the robot*/
     setupRobotConnection();
+    
+    // call client main loop
 
     /* Send the string to the robot */
     if (send(ROBOT_SOCKET, REQUEST_MESSAGE.c_str(), REQUEST_MESSAGE.length(), 0) != (int)REQUEST_MESSAGE.length())

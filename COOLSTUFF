@@ -1,3 +1,4 @@
+**********************************************************************
 delete branch locally and remotely ~~
 
 git branch -d <branch_name> // local
@@ -15,6 +16,7 @@ git push origin <branch_name> // remotely
 
 Things yet to learn ~~
 
+what the o.O is workflow?
 pull command
 
 to be updated!

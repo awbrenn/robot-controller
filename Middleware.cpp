@@ -147,7 +147,6 @@ void getHTTPResponse(int ROBOT_SOCKET) {
 
 void detectCommand(char *command)
 {
-	// image is not yet functional
 	// when satisfied , remove all the cout(s) to make the code more readable and concise.
 
 	char *temp;
@@ -155,6 +154,8 @@ void detectCommand(char *command)
 
 	if(strcmp(command , "GET IMAGE")==0)
 	{
+        FILE_PATH = FILE_PATH + "snapshot?topic=/robot_8/image?width=683?height=360" ; // semi-hd :P  ; constant for now ; change later
+        printf("%s\n", FILE_PATH.c_str());
 		PORT = 8081;
 		cout<<"request for image"<<endl;
 	}

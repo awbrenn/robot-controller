@@ -27,15 +27,17 @@ void setupRobotConnection();
 
 
 /* global variable declarations */
-unsigned short PORT = 8082; 		// default port value
+unsigned short ROBOT_PORT = 8083; 		// default robot port value
+unsigned short PROXY_PORT = 8000;       // default proxy port value
 string SERVER_NAME("");
 string FILE_PATH("/");
 string OUTPUT_FILENAME("");
 string HTTP_RESPONSE("");
 string REQUEST_MESSAGE("GET ");
 int ROBOT_SOCKET;
-struct sockaddr_in ROBOT_ADDR; /* Local address */
-
+int PROXY_SOCKET;
+struct sockaddr_in ROBOT_ADDR; /* Robot address */
+struct sockaddr_in PROXY_ADDR; /* Local address */
 
 
 int main (int argc, char *argv[]) {
@@ -67,6 +69,22 @@ int main (int argc, char *argv[]) {
     return 0;
 }
 
+// void initializeProxyServer() {
+//     /* Create socket for sending/receiving datagrams */
+//     if ((PROXY_SOCK = socket(PF_INET, SOCK_DGRAM, IPPROTO_UDP)) < 0)
+//         dieWithError((char *)"socket() failed");
+
+//     /* Construct local address structure */
+//     memset(&PROXY_ADDR, 0, sizeof(PROXY_ADDR));   /* Zero out structure */
+//     PROXY_ADDR.sin_family = AF_INET;                /* Internet address family */
+//     PROXY_ADDR.sin_addr.s_addr = htonl(INADDR_ANY); /* Any incoming interface */
+//     PROXY_ADDR.sin_port = htons(serverPort);      /* Local port */
+
+//     /* Bind to the local address */
+//     if (bind(sock, (struct sockaddr *) &PROXY_ADDR, sizeof(PROXY_ADDR)) < 0)
+//         dieWithError((char *)"bind() failed");
+// }
+
 
 void setupRobotConnection() {
     struct hostent *thehost; /* Hostent from gethostbyname() */
@@ -78,8 +96,8 @@ void setupRobotConnection() {
     /* Construct the server address structure */
     memset(&ROBOT_ADDR, 0, sizeof(ROBOT_ADDR));    /* Zero out structure */
     ROBOT_ADDR.sin_family = AF_INET;                 /* Internet addr family */
-    ROBOT_ADDR.sin_addr.s_addr = inet_addr(SERVER_NAME.c_str());  /* Server IP address */
-    ROBOT_ADDR.sin_port   = htons(PORT);     /* Server port */
+    ROBOT_ADDR.sin_addr.s_addr = inet_addr(SERVER_NAME.c_str()); /* Server IP address */
+    ROBOT_ADDR.sin_port = htons(ROBOT_PORT);     /* Server port */
 
     /* If user gave a non dotted decimal address, we need to resolve it  */
     if ((int)ROBOT_ADDR.sin_addr.s_addr == -1) {
@@ -91,6 +109,11 @@ void setupRobotConnection() {
     if (connect(ROBOT_SOCKET, (struct sockaddr *) &ROBOT_ADDR, sizeof(ROBOT_ADDR)) < 0)
         dieWithError((char *)"connect() failed");
 }
+
+
+// void setupClientConnection() {
+// }
+
 
 void parseURL(string URL) {
 	size_t serverName_endIndex;
@@ -125,6 +148,7 @@ void buildRequestHeader() {
 void getHTTPResponse(int ROBOT_SOCKET) {
     char httpRequestBuffer[RECV_BUFF_SIZE];
     int messageLen;
+    int start_of_content;
 
     if ((messageLen = read(ROBOT_SOCKET, httpRequestBuffer, RECV_BUFF_SIZE)) < 0)
         dieWithError((char *)"recv() failed");
@@ -135,8 +159,31 @@ void getHTTPResponse(int ROBOT_SOCKET) {
     for (int i = 0; i < messageLen; ++i) {
         HTTP_RESPONSE += httpRequestBuffer[i];
     }
-    HTTP_RESPONSE += '\n';
+
+    content_length = getContentLength();
+    start_of_content = getStartOfContent();
+
+    cout << "Content-Length: "
 }
+
+
+int getContentLength() {
+    char buffer[]
+    int start_of_content_length;
+    int end_of_content_length;
+
+    if (start_of_content_length = HTTP_RESPONSE.find_first_of("Content-Length: ") == HTTP_RESPONSE.npox)
+        dieWithError((char *)"getHTTPResponse(): no content length specified in response");
+    
+    end_of_content_length = HTTP_RESPONSE.find_first_of("");
+
+}
+
+
+int getStartOfContent() {
+    return HTTP_RESPONSE.find_first_of("\n\r\c");
+}
+
 
 /*********************************
 TODO:
@@ -145,5 +192,6 @@ response to the client instead of just
 printing it out.
 **********************************/
 void sendRobotResponseToClient() {
-    fprintf(stdout, "%s", HTTP_RESPONSE.c_str());
+    //fprintf(stdout, "%s", HTTP_RESPONSE.c_str());
+    cout << HTTP_RESPONSE << endl;
 }

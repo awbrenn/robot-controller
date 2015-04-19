@@ -1,0 +1,30 @@
+delete branch locally and remotely ~~
+
+git branch -d <branch_name> // local
+git push origin :<branch_name> // remotely
+
+delete files ~~
+
+git rm <file_name> // local
+git commit -m "*insert message here*"
+git push origin <branch_name> // remotely
+
+
+
+--------------------------------------------------
+
+Things yet to learn ~~
+
+pull command
+
+to be updated!
+
+--------------------------------------------------
+
+Questions!
+1.) can i merge two branches? <branch1> with <branch2>
+2.) what does origin mean ?? O.o
+
+to be updated!
+
+***********************************************************************

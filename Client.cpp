@@ -8,7 +8,7 @@ Due Date:   04/24/2015
 
 File Description:
 This file contains an implementation of a simple our
-client implementation for our program.
+client implementation for our program..
 
 *********************************************************/
 

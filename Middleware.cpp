@@ -24,6 +24,9 @@ void getHTTPResponse(int);
 void buildRequestHeader();
 void sendRobotResponseToClient();
 void setupRobotConnection();
+void setupClientConnection();
+int getContentLength();
+int getStartOfContent();
 
 
 /* global variable declarations */
@@ -69,21 +72,21 @@ int main (int argc, char *argv[]) {
     return 0;
 }
 
-// void initializeProxyServer() {
-//     /* Create socket for sending/receiving datagrams */
-//     if ((PROXY_SOCK = socket(PF_INET, SOCK_DGRAM, IPPROTO_UDP)) < 0)
-//         dieWithError((char *)"socket() failed");
+void initializeProxyServer() {
+    /* Create socket for sending/receiving datagrams */
+    if ((PROXY_SOCKET = socket(PF_INET, SOCK_DGRAM, IPPROTO_UDP)) < 0)
+        dieWithError((char *)"socket() failed");
 
-//     /* Construct local address structure */
-//     memset(&PROXY_ADDR, 0, sizeof(PROXY_ADDR));   /* Zero out structure */
-//     PROXY_ADDR.sin_family = AF_INET;                /* Internet address family */
-//     PROXY_ADDR.sin_addr.s_addr = htonl(INADDR_ANY); /* Any incoming interface */
-//     PROXY_ADDR.sin_port = htons(serverPort);      /* Local port */
+    /* Construct local address structure */
+    memset(&PROXY_ADDR, 0, sizeof(PROXY_ADDR));   /* Zero out structure */
+    PROXY_ADDR.sin_family = AF_INET;                /* Internet address family */
+    PROXY_ADDR.sin_addr.s_addr = htonl(INADDR_ANY); /* Any incoming interface */
+    PROXY_ADDR.sin_port = htons(PROXY_PORT);      /* Local port */
 
-//     /* Bind to the local address */
-//     if (bind(sock, (struct sockaddr *) &PROXY_ADDR, sizeof(PROXY_ADDR)) < 0)
-//         dieWithError((char *)"bind() failed");
-// }
+    /* Bind to the local address */
+    if (bind(PROXY_SOCKET, (struct sockaddr *) &PROXY_ADDR, sizeof(PROXY_ADDR)) < 0)
+        dieWithError((char *)"bind() failed");
+}
 
 
 void setupRobotConnection() {
@@ -111,8 +114,8 @@ void setupRobotConnection() {
 }
 
 
-// void setupClientConnection() {
-// }
+void setupClientConnection() {
+}
 
 
 void parseURL(string URL) {
@@ -148,7 +151,6 @@ void buildRequestHeader() {
 void getHTTPResponse(int ROBOT_SOCKET) {
     char httpRequestBuffer[RECV_BUFF_SIZE];
     int messageLen;
-    int start_of_content;
 
     if ((messageLen = read(ROBOT_SOCKET, httpRequestBuffer, RECV_BUFF_SIZE)) < 0)
         dieWithError((char *)"recv() failed");
@@ -160,28 +162,31 @@ void getHTTPResponse(int ROBOT_SOCKET) {
         HTTP_RESPONSE += httpRequestBuffer[i];
     }
 
-    content_length = getContentLength();
-    start_of_content = getStartOfContent();
+    int content_length = getContentLength();
+    int start_of_content = getStartOfContent();
 
-    cout << "Content-Length: "
+    cout << "Content-Length: " << content_length <<
+    "\nStart of Content: " << start_of_content << "\n\n" << endl;
 }
 
 
 int getContentLength() {
-    char buffer[]
-    int start_of_content_length;
-    int end_of_content_length;
+    size_t start_of_content_length;
+    size_t end_of_content_length;
 
-    if (start_of_content_length = HTTP_RESPONSE.find_first_of("Content-Length: ") == HTTP_RESPONSE.npox)
+    if ((start_of_content_length = HTTP_RESPONSE.find_first_of("Content-Length: ")) == HTTP_RESPONSE.npos)
         dieWithError((char *)"getHTTPResponse(): no content length specified in response");
-    
-    end_of_content_length = HTTP_RESPONSE.find_first_of("");
 
+    start_of_content_length += 16; // move start to the actual number - strlen("Content-Length: ")
+    end_of_content_length = HTTP_RESPONSE.find("\r\n", start_of_content_length);
+
+
+    return atoi(HTTP_RESPONSE.substr(start_of_content_length, end_of_content_length - start_of_content_length).c_str());
 }
 
 
 int getStartOfContent() {
-    return HTTP_RESPONSE.find_first_of("\n\r\c");
+    return HTTP_RESPONSE.find("\r\n\r\n");
 }
 
 

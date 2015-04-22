@@ -2,7 +2,8 @@ CC = g++
 PROG = middleware client
 
 DEPS = Header.h
-CPLUSFLAGS = -std=c++0x -c -ggdb -O2 -Wall
+#CPLUSFLAGS = -std=c++0x -c -ggdb -O2 -Wall
+CPLUSFLAGS = -g -Wall
 
 MIDDLEWARE_SRC = Middleware.cpp ErrorFunctions.cpp
 MIDDLEWARE_OBJS = $(MIDDLEWARE_SRC:.c=.o)
@@ -15,12 +16,12 @@ all: $(PROG)
 middleware: $(MIDDLEWARE_SRC)
 	${CC} $(CPLUSFLAGS) -c -o Middleware.o Middleware.cpp
 	${CC} $(CPLUSFLAGS) -c -o ErrorFunctions.o ErrorFunctions.cpp
-	${CC} -o $@ $(MIDDLEWARE_OBJS)
+	${CC} -g -o $@ $(MIDDLEWARE_OBJS)
 
 client: $(CLIENT_SRC)
 	${CC} $(CPLUSFLAGS) -c -o Client.o Client.cpp
 	${CC} $(CPLUSFLAGS) -c -o ErrorFunctions.o ErrorFunctions.cpp
-	${CC} -o $@ $(CLIENT_OBJS)
+	${CC} -g -o $@ $(CLIENT_OBJS)
 
 backup:
 	rm -f awbrenn-hw3.tar *.o *.out client *~

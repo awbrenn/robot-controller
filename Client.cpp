@@ -73,7 +73,7 @@ int main (int argc, char *argv[])
    initalizeMiddleware();   
    
    //Call function to add header to vector components
-   v = addHeaderToCommands(v);
+   //v = addHeaderToCommands(v);
    
    printf("Len: %d, Num: %d, AngleFirst: %f, AngleSecond: %f\n", len, 
       num, angleFirst, angleSecond);
@@ -83,10 +83,11 @@ int main (int argc, char *argv[])
    for (it = v.begin(); it != v.end(); it++)
       cout << *it << endl;
    
+   
+   int i = 0;
    //Run loop until all of v has been sent 
    for (it = v.begin(); it != v.end(); it++)
    {
-      int i = 0;
       memset (recvBuffer, ' ', sizeof(recvBuffer));
       clntAddrLen = sizeof(clntAddr);
        

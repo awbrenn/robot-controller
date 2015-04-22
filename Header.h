@@ -34,7 +34,8 @@ constants.
 #include <sys/stat.h>
 
 
-#define RECV_BUFF_SIZE 1000000     /* Longest string to server */
+#define RECV_BUFF_SIZE 1000000     /* The server can recieve a total of 1MB */
+#define UDP_PACKET_MAX_SIZE 1000   /* Max size of a UDP packet */
 #define MAX_PENDING 5
 #define HTTP_URL_SECTION 7
 

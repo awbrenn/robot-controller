@@ -30,6 +30,10 @@ void removeHeaderFromHTTPResponse();
 vector<string> fragmentHTTPResponse();
 vector<string> addHeaderToResponseToClient(vector<string>);
 string convertHeaderInfoToString(uint32_t);
+void middlewareMainLoop();
+void getCommandFromClient();
+void initializeProxyServer();
+
 
 
 /* global variable declarations */
@@ -40,6 +44,7 @@ string FILE_PATH("/");
 string OUTPUT_FILENAME("");
 string HTTP_RESPONSE("");
 string REQUEST_MESSAGE("GET ");
+string COMMAND("");
 int ROBOT_SOCKET;
 int PROXY_SOCKET;
 struct sockaddr_in ROBOT_ADDR;  /* Robot address */
@@ -68,13 +73,44 @@ int main (int argc, char *argv[]) {
     if (send(ROBOT_SOCKET, REQUEST_MESSAGE.c_str(), REQUEST_MESSAGE.length(), 0) != (int)REQUEST_MESSAGE.length())
         dieWithError((char *)"send() sent a different number of bytes than expected");
 
-    getHTTPResponse(ROBOT_SOCKET); // get a response from the robot
-    close(ROBOT_SOCKET); // close the connection with the robot
-
-    sendRobotResponseToClient();
+    initializeProxyServer();
+    middlewareMainLoop();
 
     return 0;
 }
+
+
+void middlewareMainLoop() {
+    while(true) {
+        getCommandFromClient();
+        getHTTPResponse(ROBOT_SOCKET); // get a response from the robot
+        sendRobotResponseToClient();
+    }
+    close(ROBOT_SOCKET); // close the connection with the robot
+}
+
+// void connectToClient() {
+//     unsigned int clientLen = sizeof(CLIENT_ADDR);
+
+//     /* waiting for the client to connect */
+//     if ((CLIENT_SOCKET = accept(PROXY_SOCKET, (struct sockaddr *) &CLIENT_ADDR, 
+//                    &clientLen)) < 0)
+//         dieWithError((char *)"accept() failed");
+// }
+
+
+void getCommandFromClient() {
+    int messageLen;
+    unsigned int clientAddrLen = sizeof(CLIENT_ADDR);
+    char clientRequestBuffer[1000];
+
+    if ((messageLen = recvfrom(PROXY_SOCKET, clientRequestBuffer, RECV_BUFF_SIZE, 
+        0, (struct sockaddr *) &CLIENT_ADDR, &clientAddrLen)) < 0)
+        dieWithError((char *)"recv() failed");
+
+    printf("%s\n", clientRequestBuffer);
+}
+
 
 void initializeProxyServer() {
     /* Create socket for sending/receiving datagrams */

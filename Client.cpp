@@ -21,10 +21,10 @@ client implementation for our program.
 using namespace std;
 //Functions
 void catchAlarm(int);
-void createVector(double angle, int len, int num);
+void createVector(int len, int num);
 void initalizeMiddleware();
 string convertHeaderInfoToString(uint32_t header_info);
-vector<string> addHeaderToResponseToClient(vector<string> commands);
+vector<string> addHeaderToCommands(vector<string> commands);
 
 //Globals
 vector<string> v;
@@ -35,19 +35,18 @@ struct hostent *thehost;
 unsigned int clntAddrLen;
 int port;
 char *ip;
-char sendBuffer[1000];
 char recvBuffer[1000];
 uint32_t REQUEST_ID = 546; 
 string ROBOT_ID = "town2";
+float angleFirst, angleSecond;
 
 int main (int argc, char *argv[])
 {
 
-   int len = atoi(argv[1]);
-   int num = atoi(argv[2]);
-   float angle =  M_PI - ((M_PI * (num - 2)) / num);
-   port = atoi(argv[3]);
-   ip = argv[4];
+   int len = atoi(argv[3]);
+   int num = atoi(argv[4]);
+   port = atoi(argv[2]);
+   ip = argv[1];
    float speed = 0.2;
    
    unsigned int TIMEOUT_SECONDS = 5;
@@ -57,43 +56,8 @@ int main (int argc, char *argv[])
  
    int recvMsgSize;
   
-   printf("Len: %d, Num: %d, Angle: %f\n", len, num, angle);
    cout << "Port: " << port << " IP: " << ip << endl;
    
-   //Call function to populate the vector
-   createVector(angle, len, num);
-
-
-   
-   //Call function to start connection
-   initalizeMiddleware();   
-   
-   //add header
-   v = addHeaderToResponseToClient(v);
-   
-   vector<string>::iterator it;
-   for (it = v.begin(); it != v.end(); it++)
-      cout << *it << endl;
-   
-   //Run loop until all of v has been sent 
-//   for (it = v.begin(); it != v.end(); it++)
-//   {
-	memset (sendBuffer, ' ', sizeof(sendBuffer));
-	memset (recvBuffer, ' ', sizeof(recvBuffer));
-	clntAddrLen = sizeof(clntAddr);
-   
-   //Current code set up to send an int to ease testing, will be removed later. 
-   printf("enter guess: ");
-   gets(sendBuffer);
-   cout << "Guess is: " << sendBuffer << endl;
-    
-   //Send command
-	if (sendto(sock, v.at(1).c_str(), v.at(1).length(), 0, (struct sockaddr *) &servAddr, sizeof(servAddr)) != v.at(1).length())
-  		cout << "Error on sendto" << endl; 
-   
-   //start timer
-   startTime = time(0);
-  		
    //Set timeout
    timeoutAction.sa_handler = catchAlarm;
    if (sigfillset(&timeoutAction.sa_mask) < 0)
@@ -101,27 +65,63 @@ int main (int argc, char *argv[])
    timeoutAction.sa_flags = 0;
    if (sigaction(SIGALRM, &timeoutAction, 0) < 0)
       cout << "Sigaction() failed" << endl;
-      
-   alarm(TIMEOUT_SECONDS);
    
-   //Recv ack
-   clntAddrLen = sizeof(clntAddr);
-   if ((recvMsgSize = recvfrom(sock, recvBuffer, 1000, 0, (struct sockaddr *) &clntAddr, &clntAddrLen )) < 0 )
-   	cout << ("error on recvFrom") << endl; 
-   	
-   //Check for timeout
-   if (recvMsgSize == -1) 
-      if (errno == EINTR)
-      {
-         double timePassed1 = difftime(time(0), startTime);
-         cout << "Timeout occured. Program Ending. Time passed is " << timePassed1 << endl;
-         exit(0);
-      }
+   //Call function to populate the vector
+   createVector(len, num);
+     
+   //Call function to start connection
+   initalizeMiddleware();   
+   
+   //Call function to add header to vector components
+   v = addHeaderToCommands(v);
+   
+   printf("Len: %d, Num: %d, AngleFirst: %f, AngleSecond: %f\n", len, 
+      num, angleFirst, angleSecond);
       
-   //Sleep based on timer if move or send
-   double timePassed2 = difftime(time(0), startTime);
-   sleep((len/speed) - timePassed2); //Need to check math
-//   }
+   //Print content of vector
+   vector<string>::iterator it;
+   for (it = v.begin(); it != v.end(); it++)
+      cout << *it << endl;
+   
+   //Run loop until all of v has been sent 
+   for (it = v.begin(); it != v.end(); it++)
+   {
+      int i = 0;
+      memset (recvBuffer, ' ', sizeof(recvBuffer));
+      clntAddrLen = sizeof(clntAddr);
+       
+      //Send command
+      if (sendto(sock, v.at(i).c_str(), v.at(i).length(), 0, 
+         (struct sockaddr *) &servAddr, sizeof(servAddr)) != v.at(i).length())
+	      cout << "Error on sendto" << endl; 
+
+      //start timer
+      startTime = time(0);
+         
+      alarm(TIMEOUT_SECONDS);
+
+/*      //Recv ack
+      clntAddrLen = sizeof(clntAddr);
+      if ((recvMsgSize = recvfrom(sock, recvBuffer, 1000, 0, 
+         (struct sockaddr *) &clntAddr, &clntAddrLen )) < 0 )
+	         cout << ("error on recvFrom") << endl; 
+	
+      //Check for timeout
+      if (recvMsgSize == -1) 
+         if (errno == EINTR)
+         {
+            double timePassed1 = difftime(time(0), startTime);
+            cout << "Timeout occured. Program Ending. Time passed is " << timePassed1 << endl;
+            exit(0);
+         }
+*/         
+      //Sleep based on timer if move or send
+      double timePassed2 = difftime(time(0), startTime);
+      //   sleep((len/speed) - timePassed2); //Need to check math
+
+      alarm(0);
+      i++;
+   }
    
    
 return 0;
@@ -129,10 +129,12 @@ return 0;
 
 void catchAlarm(int ignored) { return; }
 
-void createVector(double angle, int len, int num)
+void createVector(int len, int num)
 {
+   angleFirst =  M_PI - ((M_PI * (num - 2)) / num);
+   angleSecond = M_PI - ((M_PI * (num - 3)) / (num - 1));
    char turnFirst[20];
-   sprintf(turnFirst, "TURN %f", angle);
+   sprintf(turnFirst, "TURN %f", angleFirst);
    char moveFirst[20];
    sprintf(moveFirst, "MOVE %d", len);
  
@@ -149,7 +151,7 @@ void createVector(double angle, int len, int num)
    }
 
    char turnSecond[20];
-   sprintf(turnSecond, "TURN -%f", angle);
+   sprintf(turnSecond, "TURN -%f", angleSecond);
    char moveSecond[20];
    sprintf(moveSecond, "MOVE %d", len);
    
@@ -203,7 +205,7 @@ string convertHeaderInfoToString(uint32_t header_info)
     return header_info_string;
 }
 
-vector<string> addHeaderToResponseToClient(vector<string> commands) 
+vector<string> addHeaderToCommands(vector<string> commands) 
 {
     uint32_t number_of_commands = commands.size();
     string body;

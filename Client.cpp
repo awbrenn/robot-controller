@@ -35,7 +35,7 @@ struct hostent *thehost;
 unsigned int clntAddrLen;
 int port;
 char *ip;
-char recvBuffer[1000];
+char recvBuffer[RECV_BUFF_SIZE];
 uint32_t REQUEST_ID = 546; 
 string ROBOT_ID = "town2";
 float angleFirst, angleSecond;
@@ -80,15 +80,15 @@ int main (int argc, char *argv[])
       
    //Print content of vector
    vector<string>::iterator it;
-   for (it = v.begin(); it != v.end(); it++)
-      cout << *it << endl;
+   // for (it = v.begin(); it != v.end(); it++)
+   //    cout << *it << endl;
    
    
    int i = 0;
    //Run loop until all of v has been sent 
    for (it = v.begin(); it != v.end(); it++)
    {
-      memset (recvBuffer, ' ', sizeof(recvBuffer));
+      memset (recvBuffer, 0, sizeof(recvBuffer));
       clntAddrLen = sizeof(clntAddr);
        
       //Send command
@@ -101,11 +101,11 @@ int main (int argc, char *argv[])
          
       alarm(TIMEOUT_SECONDS);
 
-/*      //Recv ack
+      //Recv ack
       clntAddrLen = sizeof(clntAddr);
-      if ((recvMsgSize = recvfrom(sock, recvBuffer, 1000, 0, 
+      if ((recvMsgSize = recvfrom(sock, recvBuffer, UDP_PACKET_MAX_SIZE, 0, 
          (struct sockaddr *) &clntAddr, &clntAddrLen )) < 0 )
-	         cout << ("error on recvFrom") << endl; 
+	         cout << ("error on recvFrom") << endl;
 	
       //Check for timeout
       if (recvMsgSize == -1) 
@@ -115,7 +115,10 @@ int main (int argc, char *argv[])
             cout << "Timeout occured. Program Ending. Time passed is " << timePassed1 << endl;
             exit(0);
          }
-*/         
+
+      recvBuffer[recvMsgSize] = '\0';
+      printf("%s\n\n", recvBuffer);
+       
       //Sleep based on timer if move or send
       double timePassed2 = difftime(time(0), startTime);
       //   sleep((len/speed) - timePassed2); //Need to check math
@@ -143,7 +146,7 @@ void createVector(int len, int num)
    {
       v.push_back(moveFirst);
       v.push_back("STOP");
-      v.push_back("GET IMAGE");
+      //v.push_back("GET IMAGE");
       v.push_back("GET DGPS");
       v.push_back("GET GPS");
       v.push_back("GET LASERS");
@@ -160,7 +163,7 @@ void createVector(int len, int num)
    {
       v.push_back(moveSecond);
       v.push_back("STOP");
-      v.push_back("GET IMAGE");
+      //v.push_back("GET IMAGE");
       v.push_back("GET DGPS");
       v.push_back("GET GPS");
       v.push_back("GET LASERS");

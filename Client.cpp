@@ -25,6 +25,7 @@ void createVector(int len, int num);
 void initalizeMiddleware();
 string convertHeaderInfoToString(uint32_t header_info);
 vector<string> addHeaderToCommands(vector<string> commands);
+void recieveAckFromMiddleware();
 
 //Globals
 vector<string> v;
@@ -51,10 +52,6 @@ int main (int argc, char *argv[])
    
    unsigned int TIMEOUT_SECONDS = 5;
    struct sigaction timeoutAction;
-   clock_t startTime;
-   double secondsPassed;
- 
-   int recvMsgSize;
   
    cout << "Port: " << port << " IP: " << ip << endl;
    
@@ -95,35 +92,11 @@ int main (int argc, char *argv[])
       if (sendto(sock, v.at(i).c_str(), v.at(i).length(), 0, 
          (struct sockaddr *) &servAddr, sizeof(servAddr)) != v.at(i).length())
 	      cout << "Error on sendto" << endl; 
-
-      //start timer
-      startTime = time(0);
          
       alarm(TIMEOUT_SECONDS);
 
       //Recv ack
-      clntAddrLen = sizeof(clntAddr);
-      if ((recvMsgSize = recvfrom(sock, recvBuffer, UDP_PACKET_MAX_SIZE, 0, 
-         (struct sockaddr *) &clntAddr, &clntAddrLen )) < 0 )
-	         cout << ("error on recvFrom") << endl;
-	
-      //Check for timeout
-      if (recvMsgSize == -1) 
-         if (errno == EINTR)
-         {
-            double timePassed1 = difftime(time(0), startTime);
-            cout << "Timeout occured. Program Ending. Time passed is " << timePassed1 << endl;
-            exit(0);
-         }
-
-      recvBuffer[recvMsgSize] = '\0';
-      printf("%s\n\n", recvBuffer);
-       
-      //Sleep based on timer if move or send
-      double timePassed2 = difftime(time(0), startTime);
-      //   sleep((len/speed) - timePassed2); //Need to check math
-
-      alarm(0);
+      recieveAckFromMiddleware();
       i++;
    }
    
@@ -225,4 +198,28 @@ vector<string> addHeaderToCommands(vector<string> commands)
     }
 
     return commands;
+}
+
+
+void recieveAckFromMiddleware() 
+{
+  int recvMsgSize;
+
+  clntAddrLen = sizeof(clntAddr);
+  if ((recvMsgSize = recvfrom(sock, recvBuffer, UDP_PACKET_MAX_SIZE, 0, 
+     (struct sockaddr *) &clntAddr, &clntAddrLen )) < 0 )
+       cout << ("error on recvFrom") << endl;
+
+  //Check for timeout
+  if (recvMsgSize == -1) 
+     if (errno == EINTR)
+     {
+        cout << "Timeout occured. Program Ending." << endl;
+        exit(0);
+     }
+
+  recvBuffer[recvMsgSize] = '\0';
+  printf("%s\n\n", recvBuffer);
+
+  alarm(0);
 }

@@ -20,11 +20,11 @@ using namespace std;
 /* function declarations */
 void checkFlag(int index, char *argv[]);
 void parseURL(string URL);
-void getHTTPResponse(int);
+void getHTTPResponse();
 void buildRequestHeader();
 void setupRobotConnection();
 void sendRobotResponseToClient();
-int getContentLength();
+// int getContentLength();
 int getStartOfContent();
 void removeHeaderFromHTTPResponse();
 vector<string> fragmentHTTPResponse();
@@ -33,18 +33,22 @@ string convertHeaderInfoToString(uint32_t);
 void middlewareMainLoop();
 void getCommandFromClient();
 void initializeProxyServer();
-
+void cleanup();
+void sendRobotTheCommand();
+void detectCommand(char*);
 
 
 /* global variable declarations */
 unsigned short ROBOT_PORT = 8083; 		// default robot port value
-unsigned short PROXY_PORT = 8000;       // default proxy port value
+unsigned short PROXY_PORT = 8010;       // default proxy port value
 string SERVER_NAME("");
 string FILE_PATH("/");
 string OUTPUT_FILENAME("");
 string HTTP_RESPONSE("");
 string REQUEST_MESSAGE("GET ");
 string COMMAND("");
+string STATE_ID("state?id=town2");
+string TWIST_ID("twist?id=town2&");
 int ROBOT_SOCKET;
 int PROXY_SOCKET;
 struct sockaddr_in ROBOT_ADDR;  /* Robot address */
@@ -63,15 +67,8 @@ int main (int argc, char *argv[]) {
    	string URL(argv[1]);
 	parseURL(URL); // then parse it
 
-    /*build the header of the GET request*/
-    buildRequestHeader();
-
     /*set up a TCP connection to the robot*/
     setupRobotConnection();
-
-    /* Send the string to the robot */
-    if (send(ROBOT_SOCKET, REQUEST_MESSAGE.c_str(), REQUEST_MESSAGE.length(), 0) != (int)REQUEST_MESSAGE.length())
-        dieWithError((char *)"send() sent a different number of bytes than expected");
 
     initializeProxyServer();
     middlewareMainLoop();
@@ -83,10 +80,14 @@ int main (int argc, char *argv[]) {
 void middlewareMainLoop() {
     while(true) {
         getCommandFromClient();
-        getHTTPResponse(ROBOT_SOCKET); // get a response from the robot
+        buildRequestHeader();
+        setupRobotConnection();
+        sendRobotTheCommand();
+        getHTTPResponse(); // get a response from the robot
         sendRobotResponseToClient();
+        cleanup();
+        close(ROBOT_SOCKET); // close the connection with the robot
     }
-    close(ROBOT_SOCKET); // close the connection with the robot
 }
 
 // void connectToClient() {
@@ -99,16 +100,36 @@ void middlewareMainLoop() {
 // }
 
 
+void cleanup() {
+    HTTP_RESPONSE = "";
+    FILE_PATH = "/";
+}
+
+
+void sendRobotTheCommand() {
+    /* Establish the connection to the robot */
+    if (connect(ROBOT_SOCKET, (struct sockaddr *) &ROBOT_ADDR, sizeof(ROBOT_ADDR)) < 0)
+        dieWithError((char *)"connect() failed");
+
+    /* Send the string to the robot */
+    if (send(ROBOT_SOCKET, REQUEST_MESSAGE.c_str(), REQUEST_MESSAGE.length(), 0) != (int)REQUEST_MESSAGE.length())
+        dieWithError((char *)"send() sent a different number of bytes than expected");
+}
+
+
 void getCommandFromClient() {
     int messageLen;
     unsigned int clientAddrLen = sizeof(CLIENT_ADDR);
     char clientRequestBuffer[1000];
 
+    bzero(clientRequestBuffer, 1000);
+
     if ((messageLen = recvfrom(PROXY_SOCKET, clientRequestBuffer, RECV_BUFF_SIZE, 
         0, (struct sockaddr *) &CLIENT_ADDR, &clientAddrLen)) < 0)
         dieWithError((char *)"recv() failed");
+    clientRequestBuffer[messageLen] = '\0';
 
-    printf("%s\n", clientRequestBuffer);
+    detectCommand(clientRequestBuffer);
 }
 
 
@@ -147,10 +168,6 @@ void setupRobotConnection() {
         thehost = gethostbyname(SERVER_NAME.c_str());
         ROBOT_ADDR.sin_addr.s_addr = *((unsigned long *) thehost->h_addr_list[0]);
     }
-
-    /* Establish the connection to the robot */
-    if (connect(ROBOT_SOCKET, (struct sockaddr *) &ROBOT_ADDR, sizeof(ROBOT_ADDR)) < 0)
-        dieWithError((char *)"connect() failed");
 }
 
 
@@ -159,7 +176,7 @@ void setupRobotConnection() {
     the UDCP protocol
 */
 void sendRobotResponseToClient() {
-    cout << HTTP_RESPONSE << endl; // test - remove later
+    //cout << HTTP_RESPONSE << endl; // test - remove later
     vector<string> fragmented_response;
 
     /* first remove the header from the HTTP response */
@@ -171,22 +188,24 @@ void sendRobotResponseToClient() {
     else // only one UDP packet needed
         fragmented_response.push_back(HTTP_RESPONSE);
 
-    fragmented_response = addHeaderToResponseToClient(fragmented_response);
+    //fragmented_response = addHeaderToResponseToClient(fragmented_response);
 
-    cout << HTTP_RESPONSE.length() << endl;
+    // cout << HTTP_RESPONSE.length() << endl;
 
-    cout << "\n\nNEW MESSASGE:" << endl;
+    // cout << "\n\nNEW MESSASGE:" << endl;
 
-    int i;
-    for (i = 0; i < (int)fragmented_response.size(); i++) {
-        uint32_t num = *((uint32_t *)fragmented_response.at(i).c_str());
-        printf("%d\n", (int) num);
-        cout << (uint32_t)fragmented_response.at(i).at(3) << endl; 
-        cout << (uint32_t)fragmented_response.at(i).at(7) << endl;
-        cout << (uint32_t)fragmented_response.at(i).at(11) << endl;
-        cout << fragmented_response.at(i).length() << endl;
+    // for (int i = 0; i < (int)fragmented_response.size(); i++) {
+    //     cout << fragmented_response.at(i) << "\n" << endl;
+    // }
+
+    for (int i = 0; i < fragmented_response.size(); ++i) {
         cout << fragmented_response.at(i) << "\n" << endl;
+        sendto(PROXY_SOCKET, fragmented_response.at(i).c_str(), fragmented_response.at(i).length(),
+               0, (struct sockaddr *) &CLIENT_ADDR, sizeof(CLIENT_ADDR));
     }
+
+    // char * hello_world = "hello world";
+    // sendto(PROXY_SOCKET, hello_world, strlen(hello_world), 0, (struct sockaddr *) &CLIENT_ADDR, sizeof(CLIENT_ADDR));
 }
 
 string convertHeaderInfoToString(uint32_t header_info) {
@@ -195,11 +214,8 @@ string convertHeaderInfoToString(uint32_t header_info) {
     int size_of_uint32_t = 4;
     int bits_in_a_byte = 8;
 
-    cout << "HEADER INFO:" << header_info << endl;
-
     for (int i = 0; i < size_of_uint32_t; ++i) {
         uint4_chunk = (char) ((header_info << (i * bits_in_a_byte)) >> (3 * bits_in_a_byte));
-        cout << "step " << i << ": " << header_info << ", " << (uint32_t) uint4_chunk << endl;
         header_info_string.push_back(uint4_chunk);
     }
 
@@ -275,7 +291,6 @@ void parseURL(string URL) {
     }
     else {
         SERVER_NAME = URL.substr(HTTP_URL_SECTION, serverName_endIndex - HTTP_URL_SECTION);
-        FILE_PATH += URL.substr(serverName_endIndex + 1, URL.length() - serverName_endIndex);
     }
 }
 
@@ -289,46 +304,130 @@ void buildRequestHeader() {
 }
 
 
-void getHTTPResponse(int ROBOT_SOCKET) {
+void getHTTPResponse() {
     char httpRequestBuffer[RECV_BUFF_SIZE];
     int messageLen;
 
-    if ((messageLen = read(ROBOT_SOCKET, httpRequestBuffer, RECV_BUFF_SIZE)) < 0)
+    if ((messageLen = recv(ROBOT_SOCKET, httpRequestBuffer, RECV_BUFF_SIZE, 0)) < 0)
         dieWithError((char *)"recv() failed");
-    
-    cout << messageLen << endl;
 
-    /* build the HTTP_RESPONSE as a char vector */
+
+    // int total_bytes_recieved = 0;
+
+    // do  {
+    //     if ((messageLen = recv(ROBOT_SOCKET, httpRequestBuffer + total_bytes_recieved, RECV_BUFF_SIZE - total_bytes_recieved, 0)) < 0)
+    //         dieWithError((char *)"recv() failed");
+
+    //     total_bytes_recieved += messageLen;
+    // } while(messageLen > 0);
+    
+    //cout << messageLen << endl;
+
+    /* build the HTTP_RESPONSE as a string */
     for (int i = 0; i < messageLen; ++i) {
         HTTP_RESPONSE += httpRequestBuffer[i];
     }
 
-    int content_length = getContentLength();
-    int start_of_content = getStartOfContent();
+    //cout << "WE GOT HERE!!\nHTTP_RESPONSE:\n" << messageLen << "\n\n" << HTTP_RESPONSE << endl;
 
-    cout << "Content Length: " << content_length <<
-    "\nStart of Content: " << start_of_content << "\n\n" << endl;
+    // int content_length = getContentLength();
+    // int start_of_content = getStartOfContent();
+
+    // cout << "Content Length: " << content_length <<
+    // "\nStart of Content: " << start_of_content << "\n\n" << endl;
 }
 
 
-int getContentLength() {
-    size_t start_of_content_length;
-    size_t end_of_content_length;
+// int getContentLength() {
+//     size_t start_of_content_length;
+//     size_t end_of_content_length;
 
-    /* search the response for "Content-Length" */
-    if ((start_of_content_length = HTTP_RESPONSE.find("Content-Length: ")) == HTTP_RESPONSE.npos)
-        dieWithError((char *)"getHTTPResponse(): no content length specified in response");
+//     /* search the response for "Content-Length" */
+//     if ((start_of_content_length = HTTP_RESPONSE.find("Content-Length: ")) == HTTP_RESPONSE.npos)
+//         dieWithError((char *)"getHTTPResponse(): no content length specified in response");
 
-    start_of_content_length += 16; // move start to the number, strlen("Content-Length: ")
+//     start_of_content_length += 16; // move start to the number, strlen("Content-Length: ")
 
-    /* search the string for the next carriage return */
-    end_of_content_length = HTTP_RESPONSE.find("\r\n", start_of_content_length);
+//      //search the string for the next carriage return 
+//     end_of_content_length = HTTP_RESPONSE.find("\r\n", start_of_content_length);
 
-    /* convert the Content-Length section to an int and return to caller */
-    return atoi(HTTP_RESPONSE.substr(start_of_content_length, end_of_content_length - start_of_content_length).c_str());
-}
+//     /* convert the Content-Length section to an int and return to caller */
+//     return atoi(HTTP_RESPONSE.substr(start_of_content_length, end_of_content_length - start_of_content_length).c_str());
+// }
 
 
 int getStartOfContent() {
     return HTTP_RESPONSE.find("\r\n\r\n") + 4; // add 4 to the number, strlen("\r\n\r\n")
 }
+
+void detectCommand(char *command)
+{
+    // when satisfied , remove all the cout(s) to make the code more readable and concise.
+
+    char *temp = 0;
+    char *value = 0;
+
+    if(strcmp(command , "GET IMAGE")==0)
+    {
+        FILE_PATH = FILE_PATH + "snapshot?topic=/robot_8/image?width=100?height=100" ; // semi-hd :P  ; constant for now ; change later
+        printf("%s\n", FILE_PATH.c_str());
+        ROBOT_PORT = 8081;
+        cout<<"request for image\n"<<endl;
+    }
+    else if(strcmp(command , "GET GPS")==0)
+    {
+        FILE_PATH = FILE_PATH + STATE_ID;
+        ROBOT_PORT = 8082;
+        printf("%s\n", FILE_PATH.c_str());
+        cout<<"request for gps\n"<< endl;
+    }
+    else if(strcmp(command , "GET DGPS")==0)
+    {
+        FILE_PATH = FILE_PATH + STATE_ID ;
+        printf("%s\n", FILE_PATH.c_str());
+        ROBOT_PORT = 8084;
+        cout<<"request for dgps\n"<<endl;
+    }
+    else if(strcmp(command , "GET LASERS")==0)
+    {
+        FILE_PATH = FILE_PATH + STATE_ID ;
+        printf("%s\n", FILE_PATH.c_str());
+        ROBOT_PORT = 8083;
+        cout<<"request for lasers\n"<<endl;
+    }
+    else if(strstr(command , "MOVE")!=NULL)
+    {
+        temp = strrchr(command , ' ');
+        temp++;
+        value= temp;
+        FILE_PATH = FILE_PATH + TWIST_ID + "lx=" + value ;
+        ROBOT_PORT = 8082;
+        printf("%s\n", FILE_PATH.c_str());
+        cout<<"request for movement"<<endl;
+        cout<<"move value is : "<<value<<endl;
+    }
+    else if(strstr(command , "TURN")!=NULL)
+    {
+        temp = strrchr(command , ' ');
+        temp++;
+        value = temp;
+        FILE_PATH = FILE_PATH + TWIST_ID + "az=" + value ;
+        ROBOT_PORT = 8082;
+        printf("%s\n", FILE_PATH.c_str());
+        cout<<"request for turn"<<endl;
+        cout<<"turn value is : "<<value<<endl;
+    }
+    else if(strstr(command , "STOP")!=NULL)
+    {
+        FILE_PATH = FILE_PATH + TWIST_ID + "lx=0";
+        ROBOT_PORT = 8082;
+        printf("%s\n", FILE_PATH.c_str());
+        cout<<"request for stop"<<endl;
+        cout<<"move value is : 0"<< "\n" << endl;
+    }
+
+    else
+        cout<<"unknown command"<<endl;
+
+}
+

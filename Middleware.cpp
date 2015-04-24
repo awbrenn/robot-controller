@@ -35,6 +35,7 @@ void initializeProxyServer();
 void cleanup();
 void sendRobotTheCommand();
 void detectCommand(char*);
+char* skipRobotID(char *command);
 
 
 /* global variable declarations */
@@ -285,7 +286,7 @@ void buildRequestHeader() {
 
 
 void getHTTPResponse() {
-    char *httpRequestBuffer = (char *) malloc(RECV_BUFF_SIZE * sizeof(char));
+    char *httpRequestBuffer = (char *) calloc(RECV_BUFF_SIZE, sizeof(char));
     int messageLen;
 
     if ((messageLen = recv(ROBOT_SOCKET, httpRequestBuffer, RECV_BUFF_SIZE, 0)) < 0)
@@ -345,6 +346,8 @@ void detectCommand(char *command)
 
     char *temp = 0;
     char *value = 0;
+
+    //command = skipRobotID(command);
 
     if(strcmp(command , "GET IMAGE")==0)
     {
@@ -406,7 +409,17 @@ void detectCommand(char *command)
     }
 
     else
-        cout<<"unknown command"<<endl;
+        cout<<"unknown command: " << command <<endl;
 
 }
+
+// char* skipRobotID(char *command) {
+//     int i = 0;
+
+//     while (command[i] != '\0') {
+//         i++;
+//     }
+
+//     return command+i+1;
+// }
 

@@ -28,6 +28,7 @@ string addRequestHeaderToCommand(string);
 void recieveAckFromMiddleware();
 string PROXY_RESPONSE("");
 void writeDataToFile(string command);
+void writeFile(char * name, int file_num, char * ext) ;
 
 //Globals
 vector<string> shape1, shape2;
@@ -42,6 +43,10 @@ char recvBuffer[RECV_BUFF_SIZE];
 uint32_t REQUEST_ID = 0; 
 string ROBOT_ID = "town2";
 float angleFirst, angleSecond;
+int GPS_FILE_NUM = 0;
+int DGPS_FILE_NUM = 0;
+int LASERS_FILE_NUM = 0;
+int IMAGE_FILE_NUM = 0;
 
 
 int main (int argc, char *argv[])
@@ -170,7 +175,9 @@ int main (int argc, char *argv[])
 
       //Recv ack
       recieveAckFromMiddleware();
-      
+      writeDataToFile(shape2[i]);
+
+
       //Shape2 sleep for move
       found = shape2.at(i).find("MOVE");
       if (found != std::string::npos)
@@ -191,7 +198,6 @@ int main (int argc, char *argv[])
       i++;
    }
    
-   fclose(output);
    return 0;
 }
 
@@ -360,6 +366,23 @@ void recieveAckFromMiddleware()
 
 }
 
-void writeDataToFile(string command){
+void writeDataToFile(string command) {
+    if (command.find("GET GPS") != string::npos)
+      writeFile("gps", GPS_FILE_NUM++, "txt");
+    else if (command.find("GET DGPS") != string::npos)
+      writeFile("dgps", DGPS_FILE_NUM++, "txt");
+    else if (command.find("GET LASERS") != string::npos)
+      writeFile("lasers", LASERS_FILE_NUM++, "txt");
+    else if (command.find("GET IMAGE") != string::npos)
+      writeFile("image", IMAGE_FILE_NUM++, "png");
+}
 
+void writeFile(char * name, int file_num, char * ext) {
+  FILE *file;
+  char buffer[20];
+  bzero(buffer, 20);
+  sprintf(buffer,"%s-%d.%s",name,file_num,ext);
+  file = fopen(buffer, "wb+");
+  fputs(PROXY_RESPONSE.c_str(), file);
+  fclose(file);
 }

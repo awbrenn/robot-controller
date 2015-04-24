@@ -40,7 +40,7 @@ void detectCommand(char*);
 
 /* global variable declarations */
 unsigned short ROBOT_PORT = 8083; 		// default robot port value
-unsigned short PROXY_PORT = 8010;       // default proxy port value
+unsigned short PROXY_PORT = 8012;       // default proxy port value
 string SERVER_NAME("");
 string FILE_PATH("/");
 string OUTPUT_FILENAME("");
@@ -188,7 +188,8 @@ void sendRobotResponseToClient() {
     else // only one UDP packet needed
         fragmented_response.push_back(HTTP_RESPONSE);
 
-    //fragmented_response = addHeaderToResponseToClient(fragmented_response);
+    /* add the header to the fragments of the response */
+    fragmented_response = addHeaderToResponseToClient(fragmented_response);
 
     // cout << HTTP_RESPONSE.length() << endl;
 
@@ -200,7 +201,7 @@ void sendRobotResponseToClient() {
 
     for (int i = 0; i < fragmented_response.size(); ++i) {
         cout << fragmented_response.at(i) << "\n" << endl;
-        sendto(PROXY_SOCKET, fragmented_response.at(i).c_str(), fragmented_response.at(i).length(),
+        sendto(PROXY_SOCKET, fragmented_response.at(i).data(), fragmented_response.at(i).length(),
                0, (struct sockaddr *) &CLIENT_ADDR, sizeof(CLIENT_ADDR));
     }
 
@@ -225,7 +226,7 @@ string convertHeaderInfoToString(uint32_t header_info) {
 
 vector<string> addHeaderToResponseToClient(vector<string> fragmented_response) {
     uint32_t number_of_messages = fragmented_response.size();
-    uint32_t sequence_number;
+    uint32_t sequence_number = 0;
     string body;
     int i;
 
@@ -234,12 +235,14 @@ vector<string> addHeaderToResponseToClient(vector<string> fragmented_response) {
     /* add header to each of the fragmented responses */
     for (i = 0; i < (int) number_of_messages; i++) {
         sequence_number = i;
-        body = fragmented_response[i];
-        body = convertHeaderInfoToString(REQUEST_ID)
-             + convertHeaderInfoToString(number_of_messages)
-             + convertHeaderInfoToString(sequence_number)
-             + body;
-        fragmented_response[i] = body;
+        int body_length = fragmented_response[i].length();
+        cout << "Body length: " << body_length << endl;
+        char * body = (char *) calloc(body_length + 12, sizeof(char));
+        memcpy(body, &REQUEST_ID, 4);
+        memcpy(body + 4, &number_of_messages, 4);
+        memcpy(body + 8, &sequence_number, 4);
+        memcpy(body + 12, fragmented_response[i].data(), body_length);
+        fragmented_response.at(i).assign(body, body_length + 12);
     }
 
     return fragmented_response;

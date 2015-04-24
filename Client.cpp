@@ -26,6 +26,7 @@ void initalizeMiddleware();
 string convertHeaderInfoToString(uint32_t header_info);
 vector<string> addHeaderToCommands(vector<string> commands);
 void recieveAckFromMiddleware();
+string PROXY_RESPONSE("");
 
 //Globals
 vector<string> v;
@@ -97,8 +98,23 @@ int main (int argc, char *argv[])
 
       //Recv ack
       recieveAckFromMiddleware();
+
+      cout << PROXY_RESPONSE << "\n\n" << endl;
       i++;
    }
+
+   // test
+
+  // string get_lasers("GET LASERS");
+
+  // if (sendto(sock, get_lasers.c_str(), get_lasers.length(), 0, 
+  //       (struct sockaddr *) &servAddr, sizeof(servAddr)) != get_lasers.length())
+  //       cout << "Error on sendto" << endl;
+
+  // //Recv ack
+  // recieveAckFromMiddleware();
+
+  // cout << PROXY_RESPONSE << endl;
    
    
 return 0;
@@ -203,23 +219,54 @@ vector<string> addHeaderToCommands(vector<string> commands)
 
 void recieveAckFromMiddleware() 
 {
+  uint32_t *id = (uint32_t *) malloc(sizeof(uint32_t));
+  uint32_t *total_messages = (uint32_t *) malloc(sizeof(uint32_t));
+  uint32_t *sequence_number = (uint32_t *) malloc(sizeof(uint32_t));
+  vector<string> fragmented_response;
   int recvMsgSize;
 
+  cout << "\nGOT HERE\n" << endl;
+
   clntAddrLen = sizeof(clntAddr);
-  if ((recvMsgSize = recvfrom(sock, recvBuffer, UDP_PACKET_MAX_SIZE, 0, 
-     (struct sockaddr *) &clntAddr, &clntAddrLen )) < 0 )
-       cout << ("error on recvFrom") << endl;
 
-  //Check for timeout
-  if (recvMsgSize == -1) 
-     if (errno == EINTR)
-     {
-        cout << "Timeout occured. Program Ending." << endl;
-        exit(0);
-     }
+  do {
+    string response_chunk;
 
-  recvBuffer[recvMsgSize] = '\0';
-  printf("%s\n\n", recvBuffer);
+    if ((recvMsgSize = recvfrom(sock, recvBuffer, UDP_PACKET_MAX_SIZE, 0, 
+       (struct sockaddr *) &clntAddr, &clntAddrLen )) < 0 )
+         cout << ("error on recvFrom") << endl;
+
+    //Check for timeout
+    if (recvMsgSize == -1) 
+       if (errno == EINTR)
+       {
+          cout << "Timeout occured. Program Ending." << endl;
+          exit(0);
+       }
+
+    recvBuffer[recvMsgSize] = '\0';
+
+    cout << "\nmessageLen: " << recvMsgSize << endl;
+    memcpy(id, recvBuffer, 4);
+    memcpy(total_messages, recvBuffer + 4, 4);
+    memcpy(sequence_number, recvBuffer + 8, 4);
+
+    cout << "\nMessage ID: " << *id << endl;
+    cout << "\nTotal Messages: " << *total_messages << endl;
+    cout << "\nSequence Number: " << *sequence_number << endl;
+
+    response_chunk.assign(recvBuffer + 12, recvMsgSize - 11);
+    fragmented_response.push_back(response_chunk);
+    //printf("%s\n\n", recvBuffer + 12);
+ } while (*sequence_number < (*total_messages - 1));
 
   alarm(0);
+
+  PROXY_RESPONSE = "";
+
+  for (int i = 0; i < (int)fragmented_response.size(); i++) {
+        PROXY_RESPONSE += fragmented_response.at(i);
+  }
+
+
 }

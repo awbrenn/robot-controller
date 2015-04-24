@@ -24,9 +24,10 @@ void catchAlarm(int);
 void createVector(int len, int num);
 void initalizeMiddleware();
 string convertHeaderInfoToString(uint32_t header_info);
-vector<string> addHeaderToCommands(vector<string> commands);
+string addRequestHeaderToCommand(string);
 void recieveAckFromMiddleware();
 string PROXY_RESPONSE("");
+void writeDataToFile(string command);
 
 //Globals
 vector<string> shape1, shape2;
@@ -46,8 +47,9 @@ float angleFirst, angleSecond;
 int main (int argc, char *argv[])
 {
 
-   int len = atoi(argv[3]);
-   int num = atoi(argv[4]);
+   ROBOT_ID = argv[3];
+   int len = atoi(argv[4]);
+   int num = atoi(argv[5]);
    port = atoi(argv[2]);
    ip = argv[1];
    double moveSpeed = 0.2;
@@ -59,10 +61,6 @@ int main (int argc, char *argv[])
    struct sigaction timeoutAction;
   
    cout << "Port: " << port << " IP: " << ip << endl;
-   
-   //Open file for output
-   FILE *output;
-   output = fopen("output.txt", "w");
    
    //Set timeout
    timeoutAction.sa_handler = catchAlarm;
@@ -100,6 +98,10 @@ int main (int argc, char *argv[])
       
       REQUEST_ID = rand() % MAX_RAND_NUMBER;
 
+      cout << "Request ID from client: " << REQUEST_ID << endl << endl;
+
+      shape1[i] = addRequestHeaderToCommand(shape1[i]);
+
       //Send command
       if (sendto(sock, shape1.at(i).c_str(), shape1.at(i).length(), 0, 
          (struct sockaddr *) &servAddr, sizeof(servAddr)) != shape1.at(i).length())
@@ -109,6 +111,7 @@ int main (int argc, char *argv[])
 
       //Recv ack
       recieveAckFromMiddleware();
+      writeDataToFile(shape1[i]);
 
       cout << PROXY_RESPONSE <<  endl << endl;
 
@@ -153,7 +156,11 @@ int main (int argc, char *argv[])
    {
       memset (recvBuffer, 0, sizeof(recvBuffer));
       clntAddrLen = sizeof(clntAddr);
-       
+
+      REQUEST_ID = rand() % MAX_RAND_NUMBER;
+      
+      shape2[i] = addRequestHeaderToCommand(shape2[i]);
+
       //Send command
       if (sendto(sock, shape2.at(i).c_str(), shape2.at(i).length(), 0, 
          (struct sockaddr *) &servAddr, sizeof(servAddr)) != shape2.at(i).length())
@@ -188,7 +195,21 @@ int main (int argc, char *argv[])
    return 0;
 }
 
+
+string addRequestHeaderToCommand(string command) {
+  int body_length = command.length();
+
+  char * body = (char *) calloc(body_length + 4, sizeof(char));
+  memcpy(body, &REQUEST_ID, 4);
+  memcpy(body + 4, command.data(), body_length);
+  command.assign(body, body_length + 4);
+
+  return command;
+}
+
+
 void catchAlarm(int ignored) { return; }
+
 
 void createVector(int len, int num)
 {
@@ -336,5 +357,9 @@ void recieveAckFromMiddleware()
         PROXY_RESPONSE += fragmented_response.at(i);
   }
 
+
+}
+
+void writeDataToFile(string command){
 
 }

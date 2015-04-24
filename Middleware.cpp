@@ -19,7 +19,6 @@ using namespace std;
 
 /* function declarations */
 void checkFlag(int index, char *argv[]);
-void parseURL(string URL);
 void getHTTPResponse();
 void buildRequestHeader();
 void setupRobotConnection();
@@ -47,25 +46,31 @@ string OUTPUT_FILENAME("");
 string HTTP_RESPONSE("");
 string REQUEST_MESSAGE("GET ");
 string COMMAND("");
-string STATE_ID("state?id=town2");
-string TWIST_ID("twist?id=town2&");
+string STATE_ID("state?id=");
+string TWIST_ID("twist?id=");
+string ROBOT_ID("");
+string IMAGE_ID("");
 int ROBOT_SOCKET;
 int PROXY_SOCKET;
 struct sockaddr_in ROBOT_ADDR;  /* Robot address */
 struct sockaddr_in PROXY_ADDR;  /* Local address */
 struct sockaddr_in CLIENT_ADDR; /* Client address */
-uint32_t REQUEST_ID = 546;        /* Stubbed for now */
+uint32_t *REQUEST_ID;        /* Stubbed for now */
 
 
 int main (int argc, char *argv[]) {
     /* check for valid command line arguments */
-    if (argc != 2)
+    if (argc != 5)
         stateProperUsageAndDie(0);
 
-
+    PROXY_PORT = atoi(argv[1]);
     /* convert the URL to a string (to make parsing easier) */
-   	string URL(argv[1]);
-	parseURL(URL); // then parse it
+   	SERVER_NAME = argv[2];
+    ROBOT_ID = argv[3];
+    STATE_ID += ROBOT_ID;
+    TWIST_ID += ROBOT_ID + "&";
+    IMAGE_ID = argv[4];
+    REQUEST_ID = (uint32_t*) malloc(4);
 
     /*set up a TCP connection to the robot*/
     setupRobotConnection();
@@ -121,7 +126,7 @@ void getCommandFromClient() {
     int messageLen;
     unsigned int clientAddrLen = sizeof(CLIENT_ADDR);
     char clientRequestBuffer[1000];
-    char *command;
+    string command;
 
     bzero(clientRequestBuffer, 1000);
 
@@ -130,9 +135,12 @@ void getCommandFromClient() {
         dieWithError((char *)"recv() failed");
     
     //parse out header
-    
-    command = clientRequestBuffer;
-    detectCommand(command);
+    memcpy(REQUEST_ID, clientRequestBuffer, 4);
+
+    cout << "Request ID form server:" << *REQUEST_ID << endl << endl;
+
+    command.assign(clientRequestBuffer + 4, messageLen - 3);
+    detectCommand((char*)command.c_str());
 }
 
 
@@ -227,7 +235,7 @@ vector<string> addHeaderToResponseToClient(vector<string> fragmented_response) {
         int body_length = fragmented_response[i].length();
         cout << "Body length: " << body_length << endl;
         char * body = (char *) calloc(body_length + 12, sizeof(char));
-        memcpy(body, &REQUEST_ID, 4);
+        memcpy(body, REQUEST_ID, 4);
         memcpy(body + 4, &number_of_messages, 4);
         memcpy(body + 8, &sequence_number, 4);
         memcpy(body + 12, fragmented_response[i].data(), body_length);
@@ -264,26 +272,6 @@ vector<string> fragmentHTTPResponse() {
     }
 
     return fragmented_response;
-}
-
-
-void parseURL(string URL) {
-	size_t serverName_endIndex;
-
-	// basic checks for valid URL
-   	if (URL.length() < HTTP_URL_SECTION + 1) // check if the url is long enough
-	    dieWithError((char *)"parseURL() failed: URL is too short");
-	else if (URL.substr(0, HTTP_URL_SECTION).compare("http://") != 0) // check if the url starts with "http://"
-	    dieWithError((char *)"parseURL() failed: URL does not start with \"http://\"");
-
-    serverName_endIndex = URL.find_first_of("/", HTTP_URL_SECTION);
-
-    if (serverName_endIndex == URL.npos) { // no path 
-        SERVER_NAME = URL.substr(HTTP_URL_SECTION, URL.length() - HTTP_URL_SECTION);
-    }
-    else {
-        SERVER_NAME = URL.substr(HTTP_URL_SECTION, serverName_endIndex - HTTP_URL_SECTION);
-    }
 }
 
 
@@ -360,7 +348,7 @@ void detectCommand(char *command)
 
     if(strcmp(command , "GET IMAGE")==0)
     {
-        FILE_PATH = FILE_PATH + "snapshot?topic=/robot_8/image?width=100?height=100" ; // semi-hd :P  ; constant for now ; change later
+        FILE_PATH = FILE_PATH + "snapshot?topic=/robot_" + IMAGE_ID + "/image?width=100?height=100" ; // semi-hd :P  ; constant for now ; change later
         printf("%s\n", FILE_PATH.c_str());
         ROBOT_PORT = 8081;
         cout<<"request for image\n"<<endl;

@@ -78,8 +78,8 @@ int main (int argc, char *argv[])
    initalizeMiddleware();   
    
    //Call function to add header to vector components
-   //shape1 = addHeaderToCommands(shape1);
-   //shape2 = addHeaderToCommands(shape2);
+//   shape1 = addHeaderToCommands(shape1);
+//   shape2 = addHeaderToCommands(shape2);
    
    printf("Len: %d, Num: %d, AngleFirst: %f, AngleSecond: %f\n", len, 
       num, angleFirst, angleSecond);
@@ -175,37 +175,37 @@ void createVector(int len, int num)
    angleFirst =  M_PI - ((M_PI * (num - 2)) / num);
    angleSecond = M_PI - ((M_PI * (num - 3)) / (num - 1));
    char turnFirst[20];
-   sprintf(turnFirst, "TURN %f", angleFirst);
+   sprintf(turnFirst, "TURN %f\O", angleFirst);
    char moveFirst[20];
-   sprintf(moveFirst, "MOVE %d", len);
+   sprintf(moveFirst, "MOVE %d\O", len);
  
    for (int i=0; i<num; i++)
    {
       shape1.push_back(moveFirst);
-      shape1.push_back("STOP");
-      //shape1.push_back("GET IMAGE");
-      shape1.push_back("GET DGPS");
-      shape1.push_back("GET GPS");
-      shape1.push_back("GET LASERS");
+      shape1.push_back("STOP\O");
+//      shape1.push_back("GET IMAGE\O");
+      shape1.push_back("GET DGPS\O");
+      shape1.push_back("GET GPS\O");
+      shape1.push_back("GET LASERS\O");
       shape1.push_back(turnFirst);
-      shape1.push_back("STOP");
+      shape1.push_back("STOP\O");
    }
 
    char turnSecond[20];
-   sprintf(turnSecond, "TURN -%f", angleSecond);
+   sprintf(turnSecond, "TURN -%f\O", angleSecond);
    char moveSecond[20];
-   sprintf(moveSecond, "MOVE %d", len);
+   sprintf(moveSecond, "MOVE %d\O", len);
    
    for (int j=0; j<num-1; j++)
    {
       shape2.push_back(moveSecond);
-      shape2.push_back("STOP");
-      //shape2.push_back("GET IMAGE");
-      shape2.push_back("GET DGPS");
-      shape2.push_back("GET GPS");
-      shape2.push_back("GET LASERS");
+      shape2.push_back("STOP\O");
+//      shape2.push_back("GET IMAGE\O");
+      shape2.push_back("GET DGPS\O");
+      shape2.push_back("GET GPS\O");
+      shape2.push_back("GET LASERS\O");
       shape2.push_back(turnSecond);
-      shape2.push_back("STOP");
+      shape2.push_back("STOP\O");
    }
 }
 
@@ -281,6 +281,8 @@ void recieveAckFromMiddleware()
         cout << "Timeout occured. Program Ending." << endl;
         exit(0);
      }
+
+  cout << "Message size: " << recvMsgSize << endl;
 
   recvBuffer[recvMsgSize] = '\0';
   printf("%s\n\n", recvBuffer);

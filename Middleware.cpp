@@ -121,15 +121,18 @@ void getCommandFromClient() {
     int messageLen;
     unsigned int clientAddrLen = sizeof(CLIENT_ADDR);
     char clientRequestBuffer[1000];
+    char *command;
 
     bzero(clientRequestBuffer, 1000);
 
     if ((messageLen = recvfrom(PROXY_SOCKET, clientRequestBuffer, RECV_BUFF_SIZE, 
         0, (struct sockaddr *) &CLIENT_ADDR, &clientAddrLen)) < 0)
         dieWithError((char *)"recv() failed");
-    clientRequestBuffer[messageLen] = '\0';
-
-    detectCommand(clientRequestBuffer);
+    
+    //parse out header
+    
+    command = clientRequestBuffer;
+    detectCommand(command);
 }
 
 
@@ -308,23 +311,22 @@ void buildRequestHeader() {
 
 
 void getHTTPResponse() {
-    char httpRequestBuffer[RECV_BUFF_SIZE];
+    char *httpRequestBuffer = (char *) malloc(RECV_BUFF_SIZE * sizeof(char));
     int messageLen;
 
     if ((messageLen = recv(ROBOT_SOCKET, httpRequestBuffer, RECV_BUFF_SIZE, 0)) < 0)
         dieWithError((char *)"recv() failed");
+       
+     int total_bytes_recieved = 0;
 
+     if (messageLen < 200)  {
+         if ((messageLen = recv(ROBOT_SOCKET, httpRequestBuffer, RECV_BUFF_SIZE, 0)) < 0)
+             dieWithError((char *)"recv() failed");
 
-    // int total_bytes_recieved = 0;
-
-    // do  {
-    //     if ((messageLen = recv(ROBOT_SOCKET, httpRequestBuffer + total_bytes_recieved, RECV_BUFF_SIZE - total_bytes_recieved, 0)) < 0)
-    //         dieWithError((char *)"recv() failed");
-
-    //     total_bytes_recieved += messageLen;
-    // } while(messageLen > 0);
+         total_bytes_recieved += messageLen;
+     }
     
-    //cout << messageLen << endl;
+    cout << messageLen << endl;
 
     /* build the HTTP_RESPONSE as a string */
     for (int i = 0; i < messageLen; ++i) {

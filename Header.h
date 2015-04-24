@@ -38,6 +38,7 @@ constants.
 #define UDP_PACKET_MAX_SIZE 1000   /* Max size of a UDP packet */
 #define MAX_PENDING 5
 #define HTTP_URL_SECTION 7
+#define MAX_RAND_NUMBER 2000000000
 
 void dieWithError(char *errorMessage);  /* External error handling function */
 void stateProperUsageAndDie(int program_id);

@@ -212,20 +212,6 @@ void sendRobotResponseToClient() {
     // sendto(PROXY_SOCKET, hello_world, strlen(hello_world), 0, (struct sockaddr *) &CLIENT_ADDR, sizeof(CLIENT_ADDR));
 }
 
-string convertHeaderInfoToString(uint32_t header_info) {
-    string header_info_string;
-    char uint4_chunk;
-    int size_of_uint32_t = 4;
-    int bits_in_a_byte = 8;
-
-    for (int i = 0; i < size_of_uint32_t; ++i) {
-        uint4_chunk = (char) ((header_info << (i * bits_in_a_byte)) >> (3 * bits_in_a_byte));
-        header_info_string.push_back(uint4_chunk);
-    }
-
-    return header_info_string;
-}
-
 
 vector<string> addHeaderToResponseToClient(vector<string> fragmented_response) {
     uint32_t number_of_messages = fragmented_response.size();

@@ -38,7 +38,7 @@ unsigned int clntAddrLen;
 int port;
 char *ip;
 char recvBuffer[RECV_BUFF_SIZE];
-uint32_t REQUEST_ID = 546; 
+uint32_t REQUEST_ID = 0; 
 string ROBOT_ID = "town2";
 float angleFirst, angleSecond;
 
@@ -90,13 +90,16 @@ int main (int argc, char *argv[])
    // for (it = v.begin(); it != v.end(); it++)
    //    cout << *it << endl;
 
+   srand(time(NULL));
    int i = 0;
    //Run loop until all of shape1 has been sent 
    for (it = shape1.begin(); it != shape1.end(); it++)
    {
       memset (recvBuffer, 0, sizeof(recvBuffer));
       clntAddrLen = sizeof(clntAddr);
-       
+      
+      REQUEST_ID = rand() % MAX_RAND_NUMBER;
+
       //Send command
       if (sendto(sock, shape1.at(i).c_str(), shape1.at(i).length(), 0, 
          (struct sockaddr *) &servAddr, sizeof(servAddr)) != shape1.at(i).length())

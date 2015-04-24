@@ -26,6 +26,7 @@ void initalizeMiddleware();
 string convertHeaderInfoToString(uint32_t header_info);
 vector<string> addHeaderToCommands(vector<string> commands);
 void recieveAckFromMiddleware();
+string PROXY_RESPONSE("");
 
 //Globals
 vector<string> shape1, shape2;
@@ -106,6 +107,9 @@ int main (int argc, char *argv[])
       //Recv ack
       recieveAckFromMiddleware();
 
+      cout << PROXY_RESPONSE <<  endl << endl;
+
+
       //Shape1 sleep for move
       found = shape1.at(i).find("MOVE");
       if (found != std::string::npos)
@@ -126,6 +130,19 @@ int main (int argc, char *argv[])
       
       i++;
    }
+
+   // test
+
+  // string get_lasers("GET LASERS");
+
+  // if (sendto(sock, get_lasers.c_str(), get_lasers.length(), 0, 
+  //       (struct sockaddr *) &servAddr, sizeof(servAddr)) != get_lasers.length())
+  //       cout << "Error on sendto" << endl;
+
+  // //Recv ack
+  // recieveAckFromMiddleware();
+
+  // cout << PROXY_RESPONSE << endl;
    
    i = 0;
    //Run loop until all of shape2 has been sent 
@@ -175,37 +192,37 @@ void createVector(int len, int num)
    angleFirst =  M_PI - ((M_PI * (num - 2)) / num);
    angleSecond = M_PI - ((M_PI * (num - 3)) / (num - 1));
    char turnFirst[20];
-   sprintf(turnFirst, "TURN %f\O", angleFirst);
+   sprintf(turnFirst, "TURN %f%s", angleFirst, "\0");
    char moveFirst[20];
-   sprintf(moveFirst, "MOVE %d\O", len);
+   sprintf(moveFirst, "MOVE %d%s", len, "\0");
  
    for (int i=0; i<num; i++)
    {
       shape1.push_back(moveFirst);
-      shape1.push_back("STOP\O");
+      shape1.push_back("STOP\0");
 //      shape1.push_back("GET IMAGE\O");
-      shape1.push_back("GET DGPS\O");
-      shape1.push_back("GET GPS\O");
-      shape1.push_back("GET LASERS\O");
+      shape1.push_back("GET DGPS\0");
+      shape1.push_back("GET GPS\0");
+      shape1.push_back("GET LASERS\0");
       shape1.push_back(turnFirst);
-      shape1.push_back("STOP\O");
+      shape1.push_back("STOP\0");
    }
 
    char turnSecond[20];
-   sprintf(turnSecond, "TURN -%f\O", angleSecond);
+   sprintf(turnSecond, "TURN -%f%s", angleSecond, "\0");
    char moveSecond[20];
-   sprintf(moveSecond, "MOVE %d\O", len);
+   sprintf(moveSecond, "MOVE %d%s", len, "\0");
    
    for (int j=0; j<num-1; j++)
    {
       shape2.push_back(moveSecond);
-      shape2.push_back("STOP\O");
+      shape2.push_back("STOP\0");
 //      shape2.push_back("GET IMAGE\O");
-      shape2.push_back("GET DGPS\O");
-      shape2.push_back("GET GPS\O");
-      shape2.push_back("GET LASERS\O");
+      shape2.push_back("GET DGPS\0");
+      shape2.push_back("GET GPS\0");
+      shape2.push_back("GET LASERS\0");
       shape2.push_back(turnSecond);
-      shape2.push_back("STOP\O");
+      shape2.push_back("STOP\0");
    }
 }
 
@@ -267,25 +284,54 @@ vector<string> addHeaderToCommands(vector<string> commands)
 
 void recieveAckFromMiddleware() 
 {
+  uint32_t *id = (uint32_t *) malloc(sizeof(uint32_t));
+  uint32_t *total_messages = (uint32_t *) malloc(sizeof(uint32_t));
+  uint32_t *sequence_number = (uint32_t *) malloc(sizeof(uint32_t));
+  vector<string> fragmented_response;
   int recvMsgSize;
 
+  cout << "\nGOT HERE\n" << endl;
+
   clntAddrLen = sizeof(clntAddr);
-  if ((recvMsgSize = recvfrom(sock, recvBuffer, UDP_PACKET_MAX_SIZE, 0, 
-     (struct sockaddr *) &clntAddr, &clntAddrLen )) < 0 )
-       cout << ("error on recvFrom") << endl;
 
-  //Check for timeout
-  if (recvMsgSize == -1) 
-     if (errno == EINTR)
-     {
-        cout << "Timeout occured. Program Ending." << endl;
-        exit(0);
-     }
+  do {
+    string response_chunk;
 
-  cout << "Message size: " << recvMsgSize << endl;
+    if ((recvMsgSize = recvfrom(sock, recvBuffer, UDP_PACKET_MAX_SIZE, 0, 
+       (struct sockaddr *) &clntAddr, &clntAddrLen )) < 0 )
+         cout << ("error on recvFrom") << endl;
 
-  recvBuffer[recvMsgSize] = '\0';
-  printf("%s\n\n", recvBuffer);
+    //Check for timeout
+    if (recvMsgSize == -1) 
+       if (errno == EINTR)
+       {
+          cout << "Timeout occured. Program Ending." << endl;
+          exit(0);
+       }
+
+    recvBuffer[recvMsgSize] = '\0';
+
+    cout << "\nmessageLen: " << recvMsgSize << endl;
+    memcpy(id, recvBuffer, 4);
+    memcpy(total_messages, recvBuffer + 4, 4);
+    memcpy(sequence_number, recvBuffer + 8, 4);
+
+    cout << "\nMessage ID: " << *id << endl;
+    cout << "\nTotal Messages: " << *total_messages << endl;
+    cout << "\nSequence Number: " << *sequence_number << endl;
+
+    response_chunk.assign(recvBuffer + 12, recvMsgSize - 11);
+    fragmented_response.push_back(response_chunk);
+    //printf("%s\n\n", recvBuffer + 12);
+ } while (*sequence_number < (*total_messages - 1));
 
   alarm(0);
+
+  PROXY_RESPONSE = "";
+
+  for (int i = 0; i < (int)fragmented_response.size(); i++) {
+        PROXY_RESPONSE += fragmented_response.at(i);
+  }
+
+
 }
